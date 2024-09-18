@@ -1,4 +1,3 @@
-```markdown
 # Buy Via - Web Scraper for Product Comparison
 
 ## Project Overview
