@@ -86,7 +86,7 @@ If you are running this project on a Linux machine, follow these steps to instal
    google-chrome --version
    ```
 
-2. Visit the [ChromeDriver Downloads](https://sites.google.com/a/chromium.org/chromedriver/downloads) page and download the ChromeDriver version matching your Chrome version.
+2. Visit the [ChromeDriver Downloads]([https://sites.google.com/a/chromium.org/chromedriver/downloads](https://googlechromelabs.github.io/chrome-for-testing/)) page and download the ChromeDriver version matching your Chrome version.
 
 3. Unzip the ChromeDriver and move it to your project folder:
 
