@@ -1,91 +1,134 @@
-# Buy-Via Platform
+```markdown
+# Buy Via - Web Scraper for Product Comparison
 
-**Buy-Via** is a platform designed to help users compare product prices from multiple e-commerce websites. By integrating web scraping, API access, and machine learning, Buy-Via ensures users can find the best deals available online. This project includes a web scraper for Jarir Bookstore, which can be extended to include other stores.
+## Project Overview
 
-## Project Objective
+This project is a web scraping tool that allows users to extract product details such as prices, links, and images from the Jarir Bookstore website. It utilizes Selenium to automate the browser and scrape the data. 
 
-Buy-Via addresses the problem of price dispersion in online retail by providing users with a comprehensive tool to compare product prices. It ensures that users can:
-- Access real-time product prices.
-- Get personalized recommendations.
-- Receive price drop alerts via email.
+The purpose is to help users compare product prices and find the best deals available on the Jarir website.
 
-## Installation
+---
 
-### Prerequisites
+## Requirements
 
-- Python 3.x installed on your machine.
-- Chrome browser installed.
-- ChromeDriver placed in your project folder (or specified path).
+- Python 3.x
+- Google Chrome Browser
+- ChromeDriver (version must match the Chrome version installed)
+- Selenium
 
-### Setup
+---
 
-1. **Clone the repository**:
+## Installation and Setup
+
+### 1. Clone the Repository
+
+First, clone this repository to your local machine:
+
+```bash
+git clone https://github.com/FAHOO20/Buy-Via.git
+cd Buy-Via
+```
+
+### 2. Create a Virtual Environment (Optional but Recommended)
+
+It is recommended to use a Python virtual environment to manage dependencies.
+
+For Windows:
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+For Linux/Mac:
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Install the Requirements
+
+Install all required Python packages:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Chrome and ChromeDriver Setup
+
+### Windows Setup
+The project already includes `chromedriver.exe`, so there is no need to install ChromeDriver separately. Just ensure your Google Chrome browser is up-to-date and matches the ChromeDriver version.
+
+### Linux Setup
+
+If you are running this project on a Linux machine, follow these steps to install Google Chrome and ChromeDriver:
+
+#### Install Google Chrome:
+1. Download and install Google Chrome based on your Linux distribution:
+
+   For Ubuntu/Debian:
    ```bash
-   git clone https://github.com/FAHOO20/Buy-Via.git
-   cd Buy-Via
+   wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+   sudo dpkg -i google-chrome-stable_current_amd64.deb
+   sudo apt-get install -f
    ```
 
-2. **Create a virtual environment**:
+2. Verify the installation:
    ```bash
-   python -m venv venv
+   google-chrome --version
    ```
 
-3. **Activate the virtual environment**:
-   - **Windows**:
-     ```bash
-     venv\Scripts\activate
-     ```
-   - **Linux/Mac**:
-     ```bash
-     source venv/bin/activate
-     ```
+#### Download and Setup ChromeDriver:
 
-4. **Install the dependencies**:
+1. Download the correct version of ChromeDriver that matches your Google Chrome version. You can check your Chrome version by running:
+   
    ```bash
-   pip install -r requirements.txt
+   google-chrome --version
    ```
 
-5. **Add ChromeDriver**:
-   - Place the `chromedriver.exe` file in the project folder.
-   - Update the path in the code if necessary:
-     ```python
-     chrome_driver_path = os.path.join(os.path.dirname(__file__), "chromedriver.exe")
-     ```
+2. Visit the [ChromeDriver Downloads](https://sites.google.com/a/chromium.org/chromedriver/downloads) page and download the ChromeDriver version matching your Chrome version.
 
-### Running the Web Scraper
+3. Unzip the ChromeDriver and move it to your project folder:
 
-1. Activate the virtual environment (if not already activated).
-2. Run the script:
    ```bash
-   python jarir_scraper.py
+   wget https://chromedriver.storage.googleapis.com/115.0.5790.102/chromedriver_linux64.zip
+   unzip chromedriver_linux64.zip
+   mv chromedriver chromedriver_linux
    ```
 
-3. Enter a search term when prompted (e.g., "iPhone 16"), and the scraper will fetch and display product information from Jarir Bookstore.
-
-### Using Streamlit Web Interface
-
-1. Install **Streamlit** (if not already installed):
-   ```bash
-   pip install streamlit
+4. Update your Python script to use the Linux version of ChromeDriver by modifying the driver path in `jarir_scraper.py`:
+   ```python
+   chrome_driver_path = os.path.join(os.path.dirname(__file__), "chromedriver_linux")
    ```
 
-2. Run the Streamlit app:
+---
+
+## Running the Project
+
+1. **Run the Web Scraper using Streamlit**:
+   The `app.py` file provides a Streamlit interface for the scraper.
+
+   Run it by executing:
    ```bash
    streamlit run app.py
    ```
 
-3. Open your browser to the URL provided by Streamlit (typically `http://localhost:8501`) to interact with the scraping tool via a web interface.
+2. **Scraping from Command Line**:
+   You can run the scraper directly from the command line by using `jarir_scraper.py`:
 
-## Usage Instructions
+   ```bash
+   python jarir_scraper.py
+   ```
 
-### Windows
-1. Follow the steps above to set up the virtual environment and run the scraper or the web app using Streamlit.
-2. Ensure that ChromeDriver is placed in the correct folder and Chrome is installed.
+   You will be prompted to enter a search term, and the scraper will display product details in the console.
 
-### Linux
-1. Install Chrome and ChromeDriver on your Linux machine.
-2. Ensure the path to the ChromeDriver is correctly specified in the project folder.
-3. Follow the same steps for setting up and running the scraper as outlined above.
+---
 
+## Troubleshooting
 
+- **ChromeDriver Version Issues**: Ensure that the version of ChromeDriver matches your Google Chrome version. If there's a version mismatch, the scraper will not work.
+  
+- **Virtual Environment**: If you encounter package conflicts or Python-related issues, consider using a virtual environment as mentioned above.
 
+---
