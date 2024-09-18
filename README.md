@@ -87,23 +87,5 @@ Buy-Via addresses the problem of price dispersion in online retail by providing 
 2. Ensure the path to the ChromeDriver is correctly specified in the project folder.
 3. Follow the same steps for setting up and running the scraper as outlined above.
 
-## Contributing
 
-Feel free to open an issue or a pull request if you'd like to contribute. Make sure to follow best practices for Python and adhere to the project's coding style.
 
-## License
-
-This project is licensed under the MIT License.
-```
-
-### To use this:
-
-1. Create a new file in your project directory called `README.md`.
-2. Copy the content from above and paste it into the `README.md` file.
-3. Commit the changes and push to your GitHub repository.
-
-```bash
-git add README.md
-git commit -m "Added project README"
-git push origin master
-```
