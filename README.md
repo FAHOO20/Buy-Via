@@ -12,9 +12,10 @@
 ## Installation
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/FAHOO20/Buy-Via.git
-   cd Buy-Via
+```bash
+git clone https://github.com/FAHOO20/Buy-Via.git
+cd Buy-Via
+```
 2. Set up a virtual environment and install dependencies:
 ```bash
 python -m venv venv
