@@ -3,7 +3,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, WebDriverException, StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from time import sleep
 import urllib.parse
 import os
@@ -23,22 +23,34 @@ class StoreScraper:
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option('useAutomationExtension', False)
         options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--headless")  
+        options.add_argument("--headless")
         options.add_argument("--window-size=1920x1080")
 
         driver = webdriver.Chrome(service=service, options=options)
         return driver
 
-    def handle_popups(self):
-        """Override in child classes to handle store-specific popups."""
-        pass
+    def clean_image_url(self, image_url):
+        """Cleans up image URL by removing extra characters, fixing slashes, and replacing `100_00` with `100_01`."""
+        # Start with `https:` if the URL begins with `//`
+        if image_url.startswith("//"):
+            image_url = "https:" + image_url
 
-    def scrape_products(self, search_value):
-        """Override in child classes to implement store-specific scraping."""
-        pass
+        # Replace quadruple slashes with double slashes
+        image_url = image_url.replace("////", "//")
 
-    def quit_driver(self):
-        self.driver.quit()
+        # Replace `100_00` with `100_01` to use the correct image URL
+        if "100_00" in image_url:
+            image_url = image_url.replace("100_00", "100_01")
+
+        # Remove unnecessary parts after `?locale=` or `&amp;fmt=`
+        if "?locale=" in image_url:
+            image_url = image_url.split("?locale=")[0] + "?locale=en-GB,en-"
+        elif "&amp;fmt=" in image_url:
+            image_url = image_url.split("&amp;")[0]
+
+        return image_url
+
+
 
 # Jarir-specific scraper class inheriting from StoreScraper
 class JarirScraper(StoreScraper):
@@ -62,7 +74,6 @@ class JarirScraper(StoreScraper):
             print("Cookie consent popup did not appear or was already handled.")
 
     def scrape_products(self, search_value, max_scrolls=5):
-        # URL encode the search query
         encoded_search_value = urllib.parse.quote(search_value)
         url = f"https://www.jarir.com/sa-en/catalogsearch/result?search={encoded_search_value}"
 
@@ -70,7 +81,6 @@ class JarirScraper(StoreScraper):
             self.driver.get(url)
             self.handle_popups()
 
-            # Wait for the first set of products to load
             WebDriverWait(self.driver, 20).until(
                 EC.presence_of_element_located((By.CLASS_NAME, "product-tile"))
             )
@@ -79,7 +89,6 @@ class JarirScraper(StoreScraper):
             unique_products = set()
 
             def extract_products():
-                # Find product elements and extract relevant info
                 product_elements = self.driver.find_elements(By.CLASS_NAME, "product-tile")
                 for product in product_elements:
                     title = product.find_element(By.CLASS_NAME, "product-title__title").text
@@ -102,14 +111,10 @@ class JarirScraper(StoreScraper):
 
             yield from extract_products()
 
-            # Scroll the page to load more products and repeat extraction
             last_height = self.driver.execute_script("return document.body.scrollHeight")
             for _ in range(max_scrolls):
                 self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                
-                # Wait longer for the new products to load after scrolling
                 sleep(3)
-                
                 yield from extract_products()
 
                 new_height = self.driver.execute_script("return document.body.scrollHeight")
@@ -124,10 +129,65 @@ class JarirScraper(StoreScraper):
             self.quit_driver()
 
 
+# Extra-specific scraper class inheriting from StoreScraper
+class ExtraScraper(StoreScraper):
+    def scrape_products(self, search_value, max_pages=5):
+        encoded_search_value = urllib.parse.quote(search_value)
+        base_url = f"https://www.extra.com/en-sa/search/?q={encoded_search_value}%3Arelevance%3Atype%3APRODUCT&text={encoded_search_value}&pageSize=96&sort=relevance"
+
+        try:
+            for page in range(1, max_pages + 1):
+                url = f"{base_url}&pg={page}"
+                self.driver.get(url)
+
+                WebDriverWait(self.driver, 20).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "product-tile-wrapper"))
+                )
+                print(f"Scraping results from {self.store_name} - Page {page} for: {search_value}")
+
+                unique_products = set()
+
+                def extract_products():
+                    product_elements = self.driver.find_elements(By.CLASS_NAME, "product-tile-wrapper")
+                    for product in product_elements:
+                        title = product.find_element(By.CLASS_NAME, "product-name-data").text
+                        link = product.find_element(By.CSS_SELECTOR, "a").get_attribute("href")
+                        price = product.find_element(By.CLASS_NAME, "price").text.replace("SAR", "").strip()
+                        info = "; ".join([li.text for li in product.find_elements(By.CSS_SELECTOR, "ul.product-stats li")])
+                        image_url = product.find_element(By.CSS_SELECTOR, "picture img").get_attribute("src")
+
+                        # Clean the image URL
+                        image_url = self.clean_image_url(image_url)
+
+                        # Use a fallback image if the URL is invalid
+                        if not image_url or image_url == "0":
+                            image_url = "https://via.placeholder.com/150"
+
+                        product_key = (title, link)
+                        if product_key not in unique_products:
+                            unique_products.add(product_key)
+                            yield {
+                                "store": self.store_name,
+                                "title": title,
+                                "link": link,
+                                "price": price,
+                                "info": info,
+                                "image_url": image_url
+                            }
+
+                yield from extract_products()
+
+        except (TimeoutException, WebDriverException) as e:
+            print(f"Error during scraping: {e}")
+        finally:
+            self.quit_driver()
+
+
 # ScraperManager class for managing multiple scrapers
 class ScraperManager:
     def __init__(self):
         self.scrapers = {
+            "extra": ExtraScraper,  # Added ExtraScraper to the manager
             "jarir": JarirScraper,
         }
 
@@ -136,6 +196,7 @@ class ScraperManager:
             scraper = scraper_class(store_name)
             print(f"Starting scraping for {store_name}")
             yield from scraper.scrape_products(search_value)
+
 
 # Example usage for real-time scraping of all stores
 if __name__ == "__main__":
