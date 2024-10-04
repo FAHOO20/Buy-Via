@@ -1,3 +1,4 @@
 selenium==4.0.0
 urllib3==1.26.7
-streamlit==1.0.0  # You can update this to the latest version you are using
+streamlit==1.0.0
+protobuf==3.20.*
