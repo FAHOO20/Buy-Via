@@ -1,7 +1,7 @@
 import streamlit as st
 import time
 from pathlib import Path
-from store_scraper import ScraperManager  # Adjust the import to match your structure
+from scraper import ScraperManager
 
 # Title and instructions
 st.title("Real-Time Product Scraper")
