@@ -1,3 +1,4 @@
+# scraper.py
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -13,9 +14,9 @@ import stat
 class StoreScraper:
     def __init__(self, store_name):
         self.store_name = store_name
-        self.driver = self.setup_driver()  # Call the standalone method here
+        self.driver = self.setup_driver()
 
-    def setup_driver(self):  # This method should not be nested inside __init__
+    def setup_driver(self):
         project_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Define the path to chromedriver within the project directory
@@ -32,7 +33,7 @@ class StoreScraper:
 
         # Set up the Chrome service with the specified path
         service = Service(executable_path=driver_path)
-        
+
         # Set up Chrome options
         options = webdriver.ChromeOptions()
         options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
@@ -78,10 +79,14 @@ class AmazonScraper(StoreScraper):
             for page in range(1, max_pages + 1):
                 url = f"{base_url}&page={page}"
                 print(f"Loading page {page} for Amazon - URL: {url}")
-                self.driver.get(url)
+                try:
+                    self.driver.get(url)
+                except TimeoutException:
+                    print(f"Connection timed out when loading {url}. Retrying...")
+                    continue
 
                 # Wait for the page to load and display product results
-                WebDriverWait(self.driver, 10).until(
+                WebDriverWait(self.driver, 20).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "div.s-main-slot"))
                 )
                 print(f"Scraping results from {self.store_name} - Page {page} for: {search_value}")
@@ -223,97 +228,82 @@ class JarirScraper(StoreScraper):
 # Extra-specific scraper class inheriting from StoreScraper
 class ExtraScraper(StoreScraper):
     def scrape_products(self, search_value, max_pages=5):
+        # Encode the search value for URL usage
         encoded_search_value = urllib.parse.quote(search_value)
         base_url = f"https://www.extra.com/en-sa/search/?q={encoded_search_value}%3Arelevance%3Atype%3APRODUCT&text={encoded_search_value}&pageSize=96&sort=relevance"
 
+        unique_products = set()
+
         try:
             for page in range(1, max_pages + 1):
+                # Construct the URL for each page using the correct format
                 url = f"{base_url}&pg={page}"
                 print(f"Loading page {page} for Extra - URL: {url}")
-                
+
+                # Navigate to the URL
+                self.driver.get(url)
+
+                # Wait for the product tiles to load
                 try:
-                    self.driver.get(url)
-
-                    # Check if pagination exists before continuing to next pages
-                    try:
-                        pagination = self.driver.find_element(By.CSS_SELECTOR, "ul.nav.ul_container")
-                        print(f"Pagination detected, continuing to page {page + 1} if available.")
-                    except NoSuchElementException:
-                        print("No pagination detected. Stopping after this page.")
-                        max_pages = 1  # Stop after first page if no pagination is present
-
-                    WebDriverWait(self.driver, 10).until(  # Reduced timeout to 10 seconds
+                    WebDriverWait(self.driver, 10).until(
                         EC.presence_of_element_located((By.CLASS_NAME, "product-tile-wrapper"))
                     )
                     print(f"Scraping results from {self.store_name} - Page {page} for: {search_value}")
 
-                    unique_products = set()
-
+                    # Extract products on the current page
                     def extract_products():
                         product_elements = self.driver.find_elements(By.CLASS_NAME, "product-tile-wrapper")
                         for product in product_elements:
-                            title = product.find_element(By.CLASS_NAME, "product-name-data").text
-                            link = product.find_element(By.CSS_SELECTOR, "a").get_attribute("href")
-                            price = product.find_element(By.CLASS_NAME, "price").text.replace("SAR", "").strip()
-                            info = "; ".join([li.text for li in product.find_elements(By.CSS_SELECTOR, "ul.product-stats li")])
-                            image_url = product.find_element(By.CSS_SELECTOR, "picture img").get_attribute("src")
+                            try:
+                                # Extract product details
+                                title = product.find_element(By.CLASS_NAME, "product-name-data").text
+                                link = product.find_element(By.CSS_SELECTOR, "a").get_attribute("href")
+                                price = product.find_element(By.CLASS_NAME, "price").text.replace("SAR", "").strip()
+                                info = "; ".join([li.text for li in product.find_elements(By.CSS_SELECTOR, "ul.product-stats li")])
+                                image_url = product.find_element(By.CSS_SELECTOR, "picture img").get_attribute("src")
 
-                            # Clean the image URL
-                            image_url = self.clean_image_url(image_url)
+                                # Clean the image URL
+                                image_url = self.clean_image_url(image_url)
 
-                            # Use a fallback image if the URL is invalid
-                            if not image_url or image_url == "0":
-                                image_url = "https://via.placeholder.com/150"
+                                # Use a fallback image if the URL is invalid
+                                if not image_url or image_url == "0":
+                                    image_url = "https://via.placeholder.com/150"
 
-                            product_key = (title, link)
-                            if product_key not in unique_products:
-                                unique_products.add(product_key)
-                                yield {
-                                    "store": self.store_name,
-                                    "title": title,
-                                    "link": link,
-                                    "price": price,
-                                    "info": info,
-                                    "image_url": image_url
-                                }
+                                product_key = (title, link)
+                                if product_key not in unique_products:
+                                    unique_products.add(product_key)
+                                    yield {
+                                        "store": self.store_name,
+                                        "title": title,
+                                        "link": link,
+                                        "price": price,
+                                        "info": info,
+                                        "image_url": image_url
+                                    }
+                            except (NoSuchElementException, WebDriverException) as e:
+                                print(f"Skipping product due to an error: {e}")
 
                     yield from extract_products()
 
+                    # Check if the current page is the last page
+                    pagination_element = self.driver.find_elements(By.CLASS_NAME, "pagination-wrapper")
+                    if pagination_element:
+                        next_button = self.driver.find_elements(By.CSS_SELECTOR, "li.next")
+                        if not next_button or 'hidden' in next_button[0].get_attribute('class'):
+                            print("No more pages to load. Stopping pagination.")
+                            break
+                    else:
+                        print("No pagination found. Assuming this is the only page.")
+                        break
+
                 except TimeoutException:
-                    print(f"Timeout loading page {page} for Extra. Skipping to next page.")
+                    print(f"Timeout loading page {page} for Extra. Retrying...")
                 except WebDriverException as e:
                     print(f"WebDriverException on page {page}: {e}. Skipping this page.")
                 except Exception as e:
                     print(f"Unexpected error on page {page}: {e}. Skipping this page.")
                 
-                # Stop scraping if we reached the max_pages limit or no pagination
-                if page >= max_pages:
-                    break
-
         except (TimeoutException, WebDriverException) as e:
             print(f"Error during scraping: {e}")
         finally:
             self.quit_driver()
-
-# ScraperManager class for managing multiple scrapers
-class ScraperManager:
-    def __init__(self):
-        self.scrapers = {
-            "amazon": AmazonScraper,
-            "jarir": JarirScraper,
-            "extra": ExtraScraper,
-        }
-
-    def scrape_all_stores(self, search_value):
-        for store_name, scraper_class in self.scrapers.items():
-            scraper = scraper_class(store_name)
-            print(f"Starting scraping for {store_name}")
-            yield from scraper.scrape_products(search_value)
-
-# Example usage for real-time scraping of all stores
-if __name__ == "__main__":
-    manager = ScraperManager()
-    search_value = "iPhone 16"  # Example search term
-
-    for product in manager.scrape_all_stores(search_value):
-        print(product)  # Print each product as it is scraped in real time
